@@ -1,0 +1,2582 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Выручка водителей</title>
+  <script src="/static/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #eef2f8;
+      --surface:     #ffffff;
+      --surface-2:   #f5f8fc;
+      --border:      #dde3ee;
+      --border-focus:#4f8ef7;
+      --text:        #18212f;
+      --text-2:      #4a5568;
+      --text-3:      #8794a8;
+      --accent:      #3b6ff5;
+      --accent-h:    #2457d9;
+      --accent-soft: #eff4ff;
+      --green:       #0ea85a;
+      --green-h:     #0b9050;
+      --red:         #e03545;
+      --red-h:       #c0202f;
+      --amber:       #f59e0b;
+      --amber-h:     #d97706;
+      --slate:       #64748b;
+      --slate-h:     #475569;
+      --row-hover:   #f0f6ff;
+      --edit-bg:     #fffdf0;
+      --radius:      10px;
+      --radius-sm:   6px;
+      --radius-lg:   14px;
+      --shadow:      0 1px 3px rgba(30,50,100,.07), 0 6px 20px rgba(30,50,100,.05);
+      --shadow-sm:   0 1px 3px rgba(30,50,100,.08);
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Plus Jakarta Sans', 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ══ ЭКРАН ВХОДА ══ */
+    .login-overlay {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; align-items: center; justify-content: center; z-index: 10000;
+    }
+    .login-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; box-shadow: var(--shadow);
+      padding: 36px 40px; width: 340px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .login-icon { font-size: 40px; text-align: center; }
+    .login-logo { max-width: 190px; max-height: 96px; object-fit: contain; }
+    .login-card h1 { font-size: 19px; text-align: center; letter-spacing: -.4px; }
+    .login-sub { color: var(--text-3); font-size: 13px; text-align: center; margin-bottom: 6px; }
+    .login-card input { width: 100%; padding: 10px 12px; }
+    .login-error { color: var(--red); font-size: 12px; min-height: 16px; }
+    .login-btn { justify-content: center; padding: 11px; }
+
+    /* ══ ШАПКА-НАВИГАЦИЯ ══ */
+    .app-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 1px 6px rgba(30,50,100,.07);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      height: 64px;
+    }
+    .app-bar-brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin-right: 24px;
+      flex-shrink: 0;
+    }
+    .app-logo { height: 38px; width: auto; flex-shrink: 0; }
+    .app-bar-brand h1 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -.4px;
+      line-height: 1.2;
+    }
+    .app-bar-brand .subtitle {
+      font-size: 11px;
+      color: var(--text-3);
+      font-weight: 400;
+    }
+
+    .nav-tabs {
+      display: flex;
+      align-items: stretch;
+      gap: 2px;
+      height: 100%;
+      flex-shrink: 0;
+    }
+    .nav-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 18px;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text-3);
+      border: none;
+      background: transparent;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      transition: color .15s, border-color .15s, background .15s;
+      border-radius: 0;
+      white-space: nowrap;
+      height: 100%;
+      margin-bottom: -1px;
+    }
+    .nav-tab:hover { color: var(--text-2); background: var(--accent-soft); }
+    .nav-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+    .nav-tab .tab-icon { font-size: 15px; }
+    .nav-tab .tab-badge {
+      background: var(--accent-soft);
+      border: 1px solid #c8d9ff;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 20px;
+    }
+    .nav-tab.active .tab-badge {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .nav-tab.nav-logout {
+      margin-left: 8px;
+      color: #c0392b;
+    }
+    .nav-tab.nav-logout:hover { color: #a93226; background: #fdecea; }
+
+    .app-bar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+    }
+    .bar-upload-panel { display: flex; align-items: center; gap: 4px; }
+    .bar-upload-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--text-2);
+      white-space: nowrap;
+    }
+    .bar-upload-item label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-3);
+      white-space: nowrap;
+    }
+    .bar-upload-item input[type="file"] { display: none; }
+    .bar-upload-btn { font-size: 11px !important; padding: 4px 9px !important; white-space: nowrap; flex-shrink: 0; }
+    .bar-upload-status { font-size: 11px; color: var(--green); font-weight: 600; min-width: 90px; text-align: right; }
+    .bar-divider { width: 1px; height: 28px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+
+    .bar-stats-panel { display: flex; align-items: center; gap: 2px; }
+    .bar-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 4px 14px;
+      border-right: 1px solid var(--border);
+      min-width: 80px;
+    }
+    .bar-stat:last-child { border-right: none; }
+    .bar-stat-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -.4px;
+      line-height: 1.1;
+    }
+    .bar-stat-value.accent { color: var(--accent); }
+    .bar-stat-value.green  { color: var(--green); }
+    .bar-stat-value.amber  { color: var(--amber); }
+    .bar-stat-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-top: 1px;
+      white-space: nowrap;
+    }
+
+    .bar-user {
+      display: flex; align-items: center; gap: 8px;
+      padding: 4px 10px 4px 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      flex-shrink: 0;
+    }
+    .bar-user-name { font-size: 13px; font-weight: 600; }
+    .bar-user-role {
+      font-size: 10px; color: var(--text-2);
+      background: #e6ecf7; border-radius: 10px;
+      padding: 1px 8px; font-weight: 600;
+    }
+
+    /* ══ КОНТЕНТ СТРАНИЦ ══ */
+    .page { display: none; padding: 28px 32px 64px; }
+    .page.active { display: block; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 20px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(to right, var(--surface-2), var(--surface));
+    }
+    .card-header .card-icon { font-size: 15px; opacity: .7; }
+    .card-header h2 {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-2);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    .card-body { padding: 18px 20px; }
+
+    .file-item { display: flex; flex-direction: column; gap: 5px; }
+    .file-item label {
+      font-size: 11px; font-weight: 600;
+      color: var(--text-3); text-transform: uppercase; letter-spacing: .4px;
+    }
+    .file-item .file-row { display: flex; gap: 6px; align-items: center; }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    input[type="password"],
+    input[type="file"] {
+      font-family: inherit;
+      font-size: 14px;
+      padding: 8px 11px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s, box-shadow .15s, background .15s;
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input[type="date"]:focus,
+    input[type="password"]:focus {
+      border-color: var(--border-focus);
+      background: var(--surface);
+      box-shadow: 0 0 0 3px rgba(79,142,247,.14);
+    }
+    input[type="file"] { font-size: 12px; padding: 5px 8px; flex: 1; min-width: 0; color: var(--text-2); }
+    select {
+      font-family: inherit; font-size: 14px;
+      padding: 8px 11px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+      color: var(--text);
+      outline: none;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 14px;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: filter .12s, transform .07s, box-shadow .12s;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    button:active { transform: scale(.97); }
+    button:hover  { filter: brightness(1.06); }
+    button:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+
+    .btn-primary { background: linear-gradient(135deg,#4f8ef7,var(--accent)); color:#fff; box-shadow:0 2px 8px rgba(59,111,245,.3); }
+    .btn-success { background: linear-gradient(135deg,#16c167,var(--green)); color:#fff; box-shadow:0 2px 8px rgba(14,168,90,.25); }
+    .btn-danger  { background: linear-gradient(135deg,#f04555,var(--red));   color:#fff; box-shadow:0 2px 8px rgba(224,53,69,.25); }
+    .btn-amber   { background: linear-gradient(135deg,#fbbf24,var(--amber)); color:#fff; box-shadow:0 2px 8px rgba(245,158,11,.25); }
+    .btn-slate   { background: linear-gradient(135deg,#7a8ea8,var(--slate)); color:#fff; }
+    .btn-outline { background:transparent; color:var(--text-2); border:1px solid var(--border); }
+    .btn-outline:hover { background:var(--bg); border-color:#c0c8d8; filter:none; }
+    .btn-sm { padding: 4px 9px; font-size: 12px; }
+    .btn-xs { padding: 3px 7px; font-size: 11px; }
+
+    .entry-grid { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; }
+    .field { display:flex; flex-direction:column; gap:4px; }
+    .field > label { font-size:11px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px; }
+    #driverInput { width:220px; }
+    #routeInput  { width:180px; }
+    #dateInput   { width:148px; }
+    #cashInput, #cardInput, #cardAvInput { width:110px; }
+
+    .entry-actions { display:flex; align-items:flex-end; gap:8px; margin-left:auto; }
+    .entry-divider { width:1px; background:var(--border); align-self:stretch; margin:0 4px; }
+
+    .autocomplete-wrap { position:relative; }
+    .suggestions {
+      position:absolute; top:calc(100% + 3px); left:0;
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); max-height:240px; overflow-y:auto;
+      min-width:200px; z-index:2000;
+      box-shadow:0 8px 24px rgba(0,0,0,.12);
+    }
+    .suggestions-fixed {
+      position:fixed;
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); max-height:240px; overflow-y:auto;
+      min-width:200px; z-index:9999;
+      box-shadow:0 8px 24px rgba(0,0,0,.15);
+    }
+    .suggestion-item {
+      padding:9px 14px; cursor:pointer; font-size:13px;
+      color:var(--text); border-bottom:1px solid #f0f4ff;
+      transition:background .1s;
+    }
+    .suggestion-item:last-child { border-bottom:none; }
+    .suggestion-item:hover { background:var(--accent-soft); color:var(--accent); font-weight:500; }
+
+    #saveStatus { font-size:12px; font-weight:600; color:var(--green); min-height:20px; margin:8px 0 4px; }
+
+    .table-header-row {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:10px; flex-wrap:wrap; gap:8px;
+    }
+    .table-title { font-size:15px; font-weight:600; color:var(--text); }
+    .count-badge {
+      display:inline-block; background:var(--accent-soft);
+      border:1px solid #c8d9ff; border-radius:20px;
+      padding:2px 10px; font-size:12px; color:var(--accent);
+      font-weight:600; margin-left:8px;
+    }
+    .author-cell { color:var(--text-2); font-size:12.5px; white-space:nowrap; }
+    .me-tag { font-size:11px; color:var(--accent); font-weight:600; }
+    .period-selects { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .period-selects label {
+      display:flex; align-items:center; gap:5px;
+      font-size:12px; font-weight:600; color:var(--text-2);
+    }
+    .period-selects select {
+      padding:4px 8px; font-size:13px; border:1px solid var(--border);
+      border-radius:var(--radius); background:var(--surface); color:var(--text);
+    }
+    .stat-cards { display:flex; gap:12px; margin:4px 0 14px; flex-wrap:wrap; }
+    .stat-card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius-lg); padding:10px 16px; min-width:140px;
+      box-shadow:var(--shadow-sm);
+    }
+    .stat-val { font-size:20px; font-weight:700; color:var(--text); line-height:1.2; }
+    .stat-val.green { color:var(--green); }
+    .stat-val.amber { color:var(--amber); }
+    .stat-lbl { font-size:12px; color:var(--text-3); margin-top:2px; }
+
+    .mini-chart-card { margin-bottom:16px; }
+    .chart-box { overflow-x:auto; }
+    .chart-subtitle { font-size:13px; color:var(--text-2); margin-left:auto; font-weight:600; }
+    .chart-box svg { display:block; min-width:520px; }
+    .chart-empty { color:var(--text-3); font-size:13px; padding:6px 0; }
+
+    .import-mode {
+      display:flex; gap:8px; font-size:12px; color:var(--text-2);
+      align-items:center; white-space:nowrap;
+    }
+    .import-mode label { display:flex; align-items:center; gap:3px; cursor:pointer; }
+
+    .monthly-chart-controls { display:flex; align-items:center; gap:8px; margin-left:auto; flex-wrap:wrap; }
+    .monthly-chart-controls select,
+    .monthly-chart-controls input[type="date"] {
+      padding:4px 8px; font-size:13px; border:1px solid var(--border);
+      border-radius:var(--radius); background:var(--surface); color:var(--text);
+    }
+
+    .user-form-hint { font-size:12px; color:var(--text-3); margin-top:8px; }
+
+    .table-wrap {
+      max-height:520px; overflow-y:auto;
+      border:1px solid var(--border);
+      border-radius:var(--radius-lg);
+      background:var(--surface);
+      box-shadow:var(--shadow-sm);
+    }
+    table { width:100%; border-collapse:collapse; }
+    th, td {
+      padding:9px 11px; text-align:left;
+      font-size:13px; border-bottom:1px solid var(--border);
+      vertical-align:middle;
+    }
+    th {
+      background:#f2f6ff; color:var(--text-2);
+      font-weight:600; font-size:12px;
+      text-transform:uppercase; letter-spacing:.4px;
+      position:sticky; top:0; z-index:10;
+      border-bottom:2px solid var(--border);
+    }
+    tbody tr:last-child td { border-bottom:none; }
+    tbody tr:hover td { background:var(--row-hover); }
+    tbody tr.editing td { background:var(--edit-bg) !important; }
+
+    .th-filter { display:flex; align-items:center; gap:4px; margin-top:5px; }
+    th input[type="text"],
+    th input[type="date"] {
+      padding:4px 7px; font-size:12px; border:1px solid var(--border);
+      border-radius:4px; font-family:inherit; font-weight:400;
+      text-transform:none; letter-spacing:0; color:var(--text);
+      background:var(--surface);
+    }
+    th input[type="text"] { width:140px; }
+    th input[type="date"] { width:128px; }
+
+    td input[type="text"],
+    td input[type="number"] {
+      width:100%; padding:5px 7px; font-size:12px;
+      border:1px solid #cbd5e1; border-radius:4px;
+      background:var(--surface);
+    }
+
+    .num { text-align:right; font-variant-numeric:tabular-nums; }
+    .total-cell { font-weight:700; color:var(--accent); }
+
+    .pivot-controls {
+      display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:16px;
+    }
+    .pivot-period {
+      display:inline-flex; align-items:center; gap:8px;
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius-sm); padding:7px 14px;
+      font-size:13px; color:var(--text-2);
+    }
+    .pivot-period strong { color:var(--text); font-weight:600; }
+    .pivot-btns { display:flex; gap:8px; flex-wrap:wrap; }
+
+    #pivotContainer {
+      max-height:480px; overflow-y:auto;
+      background:var(--surface);
+    }
+    #pivotContainer table th { background:#f2f6ff; }
+    #pivotContainer tbody tr { cursor:pointer; }
+    #pivotContainer tbody tr:hover td { background:#eff6ff; }
+
+    #detailsContainer {
+      background:var(--surface);
+      overflow:hidden;
+    }
+    #detailsContainer table th { background:#f0f4ff; color:#3b5cbf; }
+
+    .grand-total {
+      font-size:15px; font-weight:700; color:var(--accent);
+      padding:11px 16px; border-top:1px solid var(--border);
+    }
+    .pivot-subtitle {
+      font-size:13px; font-weight:600; color:var(--text-2);
+      padding:13px 16px 5px;
+    }
+    .detail-subtitle {
+      font-size:13px; font-weight:600; padding:13px 16px 5px; color:#3b5cbf;
+    }
+    .detail-subtitle span { color:var(--text); }
+
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(to right, var(--surface-2), var(--surface));
+    }
+    .table-toolbar-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-2);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .table-toolbar-actions { display: flex; gap: 7px; }
+
+    #pivotContainer tbody tr td:first-child { padding-left: 8px; }
+    .pivot-cb-cell {
+      width: 36px !important;
+      padding: 0 4px 0 10px !important;
+      text-align: center !important;
+    }
+    .pivot-cb-cell input[type="checkbox"] {
+      width: 15px; height: 15px;
+      accent-color: var(--accent);
+      cursor: pointer;
+      border: none; background: none;
+      padding: 0; margin: 0;
+      vertical-align: middle;
+    }
+    #pivotContainer tbody tr.cb-checked td { background: var(--accent-soft) !important; }
+    #pivotContainer thead tr th.pivot-cb-cell { padding: 0 4px 0 10px !important; }
+    .pivot-sel-bar {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      background: var(--accent-soft);
+      border-top: 1px solid #c8d9ff;
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .pivot-sel-bar.visible { display: flex; }
+    .pivot-sel-bar .sel-count { flex: 1; }
+    .pivot-sel-bar button { font-size: 12px; }
+
+    .empty-pivot { padding: 48px 20px; text-align: center; color: var(--text-3); }
+    .empty-pivot .ep-icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-pivot p { font-size: 14px; }
+
+    /* ══ АДМИНИСТРИРОВАНИЕ ══ */
+    .user-form {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+      margin-bottom: 18px; padding: 14px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .user-form .field { flex: 1 1 150px; }
+    .user-form .field input, .user-form .field select { width: 100%; }
+    .user-form .field-check { display: flex; align-items: center; gap: 6px; padding-bottom: 9px; }
+    .user-form .field-check input { width: 15px; height: 15px; accent-color: var(--accent); }
+    #userStatus { font-size: 12px; font-weight: 600; color: var(--green); min-height: 18px; margin-top: 8px; }
+    .users-table th, .users-table td { padding: 9px 11px; }
+    .users-table .actions-cell { white-space: nowrap; }
+    .badge-role {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      padding: 2px 9px; border-radius: 12px;
+    }
+    .badge-role.admin   { background: var(--accent-soft); color: var(--accent); border: 1px solid #c8d9ff; }
+    .badge-role.user    { background: #eef1f6; color: var(--text-2); border: 1px solid var(--border); }
+    .badge-role.manager { background: #fff4e0; color: #b26a00; border: 1px solid #ffd9a0; }
+
+    @media print {
+      body { background: #fff; padding: 0; font-size: 12px; }
+      .app-bar, .page#page-entry, .page#page-admin, .login-overlay,
+      .analytics-grid, .pivot-controls, .table-toolbar-actions,
+      button { display: none !important; }
+      .page#page-analytics { display: block !important; padding: 0; }
+      .card { box-shadow: none; border: none; }
+      .print-target { display: block !important; }
+      .no-print { display: none !important; }
+      #pivotContainer, #detailsContainer {
+        max-height: none !important;
+        overflow: visible !important;
+        border: 1px solid #ccc;
+        box-shadow: none;
+      }
+      .print-section-title {
+        font-size: 14px; font-weight: 700; margin: 16px 0 8px;
+        color: #18212f;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ ЭКРАН ВХОДА ══ -->
+<div class="login-overlay" id="loginScreen">
+  <div class="login-card">
+    <div class="login-icon"><img class="login-logo" src="/static/logo_small.png" alt="Логотип"></div>
+    <h1>Выручка водителей</h1>
+    <p class="login-sub">Вход в систему</p>
+    <input type="text" id="loginUsername" list="loginUserList" placeholder="Выберите или введите логин" autocomplete="username">
+    <datalist id="loginUserList"></datalist>
+    <input type="password" id="loginPassword" placeholder="Пароль" autocomplete="current-password">
+    <div class="login-error" id="loginError"></div>
+    <button class="btn-primary login-btn" onclick="doLogin()">Войти</button>
+  </div>
+</div>
+
+<!-- ══ ШАПКА-НАВИГАЦИЯ ══ -->
+<div class="app-bar" id="appBar" style="display:none;">
+  <div class="app-bar-brand">
+    <img class="app-logo" src="/static/logo_small.png" alt="Логотип">
+    <div>
+      <h1>Выручка водителей</h1>
+      <div class="subtitle">Учёт и аналитика поступлений</div>
+    </div>
+  </div>
+
+  <nav class="nav-tabs">
+    <button class="nav-tab active" id="tab-entry" onclick="switchTab('entry')">
+      <span class="tab-icon">✏️</span>
+      Ввод данных
+      <span class="tab-badge" id="badge-count">0</span>
+    </button>
+    <button class="nav-tab" id="tab-analytics" onclick="switchTab('analytics')">
+      <span class="tab-icon">📊</span>
+      Аналитика
+    </button>
+    <button class="nav-tab" id="tab-charts" onclick="switchTab('charts')">
+      <span class="tab-icon">📈</span>
+      Графики
+    </button>
+    <button class="nav-tab" id="tab-admin" onclick="switchTab('admin')" style="display:none;">
+      <span class="tab-icon">⚙️</span>
+      Администрирование
+    </button>
+    <button class="nav-tab nav-logout" onclick="doLogout()" title="Выйти из системы">
+      <span class="tab-icon">🚪</span>
+      Выйти
+    </button>
+  </nav>
+
+  <div class="app-bar-right">
+
+    <div class="bar-upload-panel" id="barUploadPanel">
+      <div class="bar-upload-item">
+        <label>Водители</label>
+        <input type="file" id="driversFile2" accept=".txt,.csv">
+        <button class="btn-primary bar-upload-btn" onclick="document.getElementById('driversFile2').click()">📂 Выбрать</button>
+        <span class="bar-upload-status" id="barDriverStatus">—</span>
+      </div>
+      <div class="bar-divider"></div>
+      <div class="bar-upload-item">
+        <label>Маршруты</label>
+        <input type="file" id="routesFile2" accept=".txt,.csv">
+        <button class="btn-primary bar-upload-btn" onclick="document.getElementById('routesFile2').click()">📂 Выбрать</button>
+        <span class="bar-upload-status" id="barRoutesStatus">—</span>
+      </div>
+      <div class="bar-divider"></div>
+      <div class="bar-upload-item" id="barImportItem">
+        <label>Импорт</label>
+        <div class="import-mode">
+          <label><input type="radio" name="importMode" value="append" checked> Дополнить</label>
+          <label><input type="radio" name="importMode" value="replace"> Заменить</label>
+        </div>
+        <input type="file" id="importExcel2" accept=".xlsx">
+        <button class="btn-amber bar-upload-btn" onclick="document.getElementById('importExcel2').click()">📥 Excel</button>
+        <span class="bar-upload-status" id="barImportStatus">—</span>
+      </div>
+    </div>
+
+    <div class="bar-stats-panel" id="barStatsPanel" style="display:none;">
+      <div class="bar-stat">
+        <div class="bar-stat-value accent" id="barStatTotal">0</div>
+        <div class="bar-stat-label">Записей</div>
+      </div>
+      <div class="bar-stat">
+        <div class="bar-stat-value green" id="barStatRevenue">0</div>
+        <div class="bar-stat-label">Выручка, руб.</div>
+      </div>
+      <div class="bar-stat">
+        <div class="bar-stat-value amber" id="barStatDrivers">0</div>
+        <div class="bar-stat-label">Водителей</div>
+      </div>
+    </div>
+
+    <div class="bar-user" id="barUser" style="display:none;">
+      <span class="bar-user-name" id="userLabel"></span>
+      <span class="bar-user-role" id="userRoleLabel"></span>
+      <button class="btn-outline btn-sm" onclick="doLogout()">Выйти</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ СТРАНИЦА: ВВОД ══ -->
+<div class="page active" id="page-entry">
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">➕</span>
+      <h2>Новая запись</h2>
+    </div>
+    <div class="card-body">
+      <div class="entry-grid">
+
+        <div class="field">
+          <label>ФИО водителя</label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="driverInput" placeholder="Начните вводить…" autocomplete="off">
+            <div id="driverSuggestions" class="suggestions" style="display:none;"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Маршрут</label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="routeInput" placeholder="Начните вводить…" autocomplete="off">
+            <div id="routeSuggestions" class="suggestions" style="display:none;"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Дата</label>
+          <input type="date" id="dateInput">
+        </div>
+
+        <div class="field">
+          <label>Наличные</label>
+          <input type="number" id="cashInput" placeholder="0" min="0" step="0.01">
+        </div>
+
+        <div class="field">
+          <label>Безнал</label>
+          <input type="number" id="cardInput" placeholder="0" min="0" step="0.01">
+        </div>
+
+        <div class="field">
+          <label>Безнал АВ</label>
+          <input type="number" id="cardAvInput" placeholder="0" min="0" step="0.01">
+        </div>
+
+        <div class="entry-actions">
+          <button class="btn-primary" onclick="addRow()">＋ Добавить</button>
+          <div class="entry-divider"></div>
+          <button class="btn-success" onclick="exportToExcel()">💾 Excel</button>
+          <button class="btn-success" onclick="exportAllCSV()">💾 Все (CSV)</button>
+          <button class="btn-outline" id="clearAllButton" onclick="clearAllData()" style="color:var(--red); border-color:#fca5a5;">🗑 Очистить</button>
+        </div>
+
+      </div>
+      <div id="saveStatus"></div>
+    </div>
+  </div>
+
+  <div class="table-header-row">
+    <div class="table-title">
+      Введённые данные
+      <span id="rowCount" class="count-badge">0 записей</span>
+    </div>
+    <div class="period-selects">
+      <label>Месяц
+        <select id="monthSel" onchange="changePeriod()"></select>
+      </label>
+      <label>Год
+        <select id="yearSel" onchange="changePeriod()"></select>
+      </label>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="dataTable">
+      <thead>
+        <tr>
+          <th>
+            ФИО
+            <div class="th-filter">
+              <input type="text" id="filterFIO" placeholder="Фильтр…" oninput="debouncedFilter()">
+              <button class="btn-outline btn-xs" onclick="clearFIOFilter()">✕</button>
+            </div>
+          </th>
+          <th>Таб. №</th>
+          <th>
+            Дата
+            <div class="th-filter">
+              <input type="date" id="filterDate" onchange="filterTable()">
+              <button class="btn-outline btn-xs" onclick="clearDateFilter()">✕</button>
+            </div>
+          </th>
+          <th>Маршрут</th>
+          <th class="num">Наличные</th>
+          <th class="num">Безнал</th>
+          <th class="num">Безнал АВ</th>
+          <th class="num">Всего</th>
+          <th>Кто добавил
+            <div class="th-filter">
+              <input type="text" id="filterUser" placeholder="Фильтр…" oninput="debouncedFilter()">
+              <button class="btn-outline btn-xs" onclick="clearUserFilter()">✕</button>
+            </div>
+          </th>
+          <th style="width:90px;">Действия</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+</div><!-- /page-entry -->
+
+<!-- ══ СТРАНИЦА: АНАЛИТИКА ══ -->
+<div class="page" id="page-analytics">
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">📊</span>
+      <h2>Сводная таблица</h2>
+    </div>
+    <div class="card-body">
+
+      <div class="pivot-controls">
+        <div class="pivot-period">
+          <strong>Период:</strong>
+          с <input type="date" id="filterStartDate">
+          по <input type="date" id="filterEndDate">
+        </div>
+        <div class="pivot-btns">
+          <button class="btn-primary" onclick="buildPivotByDriver()">👤 По водителям</button>
+          <button class="btn-primary" onclick="buildPivotByDate()">📅 По датам</button>
+          <button class="btn-primary" onclick="buildPivotByRoute()">🛣 По маршрутам</button>
+        </div>
+      </div>
+
+      <div id="pivotWrapper" style="border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow); margin-bottom:0;">
+        <div class="table-toolbar" id="pivotToolbar" style="display:none;">
+          <span class="table-toolbar-title" id="pivotToolbarTitle">Сводная таблица</span>
+          <div class="table-toolbar-actions">
+            <button class="btn-success btn-sm" onclick="exportPivotToExcel()">💾 Excel</button>
+            <button class="btn-slate btn-sm" onclick="printSection('pivot')">🖨 Печать</button>
+          </div>
+        </div>
+        <div id="pivotContainer">
+          <div class="empty-pivot">
+            <div class="ep-icon">📋</div>
+            <p>Выберите группировку для построения сводной таблицы</p>
+          </div>
+        </div>
+        <div class="pivot-sel-bar" id="pivotSelBar">
+          <span class="sel-count" id="pivotSelCount">Выбрано: 0</span>
+          <button class="btn-outline btn-sm" onclick="pivotSelectAll()">Выбрать все</button>
+          <button class="btn-outline btn-sm" onclick="pivotClearSelection()">Снять выбор</button>
+          <button class="btn-primary btn-sm" onclick="showSelectionDetails()">📋 Детализация</button>
+        </div>
+      </div>
+
+      <div id="detailsWrapper" style="margin-top:14px; border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow); display:none;">
+        <div class="table-toolbar">
+          <span class="table-toolbar-title" id="detailsToolbarTitle">Детализация</span>
+          <div class="table-toolbar-actions">
+            <button class="btn-success btn-sm" onclick="exportDetailsToExcel()">💾 Excel</button>
+            <button class="btn-slate btn-sm" onclick="printSection('details')">🖨 Печать</button>
+          </div>
+        </div>
+        <div id="detailsContainer"></div>
+      </div>
+
+    </div>
+  </div>
+
+  </div><!-- /page-analytics -->
+
+<!-- ══ СТРАНИЦА: ГРАФИКИ ══ -->
+<div class="page" id="page-charts">
+
+  <!-- Годовой -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">📅</span>
+      <h2>Выручка по месяцам (годовой)</h2>
+      <div class="monthly-chart-controls">
+        <select id="chartYearYear"></select>
+        <button class="btn-primary btn-sm" onclick="drawYearlyChart()">Построить</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div id="yearlyChart" class="chart-box">
+        <div class="empty-pivot"><div class="ep-icon">📅</div><p>Выберите год и нажмите «Построить»</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Месячный -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-header">
+      <span class="card-icon">📈</span>
+      <h2>Выручка по дням (месячный)</h2>
+      <div class="monthly-chart-controls">
+        <select id="chartMonthMonth"></select>
+        <select id="chartMonthYear"></select>
+        <button class="btn-primary btn-sm" onclick="drawMonthDayChart()">Построить</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div id="monthDayChart" class="chart-box">
+        <div class="empty-pivot"><div class="ep-icon">📈</div><p>Выберите месяц и нажмите «Построить»</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Произвольный -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-header">
+      <span class="card-icon">📊</span>
+      <h2>Выручка по дням (произвольный период)</h2>
+      <div class="monthly-chart-controls">
+        с <input type="date" id="chartCustomFrom">
+        по <input type="date" id="chartCustomTo">
+        <button class="btn-primary btn-sm" onclick="drawCustomChart()">Построить</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div id="customChart" class="chart-box">
+        <div class="empty-pivot"><div class="ep-icon">📊</div><p>Выберите период и нажмите «Построить»</p></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page-charts -->
+
+<!-- ══ СТРАНИЦА: АДМИНИСТРИРОВАНИЕ ══ -->
+<div class="page" id="page-admin">
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">⚙️</span>
+      <h2 id="userFormTitle">Новый пользователь</h2>
+    </div>
+    <div class="card-body">
+
+      <div class="user-form">
+        <div class="field">
+          <label>Логин</label>
+          <input type="text" id="uUsername" placeholder="Иванов.И" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Пароль (мин. 8)</label>
+          <input type="password" id="uPassword" placeholder="••••••••" autocomplete="new-password">
+        </div>
+        <div class="field">
+          <label>ФИО</label>
+          <input type="text" id="uFullName" placeholder="Иванов Иван Иванович" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Роль</label>
+          <select id="uRole">
+            <option value="user">Пользователь</option>
+            <option value="manager">Руководитель</option>
+            <option value="admin">Администратор</option>
+          </select>
+        </div>
+        <div class="field-check">
+          <input type="checkbox" id="uActive" checked>
+          <label for="uActive">Активен</label>
+        </div>
+        <button class="btn-success" id="uSubmitBtn" onclick="saveUser()">＋ Добавить</button>
+        <button class="btn-outline" id="uCancelBtn" onclick="resetUserForm()" style="display:none;">✕ Отмена</button>
+      </div>
+
+      <div class="table-wrap" style="max-height:450px;">
+        <table class="users-table" id="usersTable">
+          <thead>
+            <tr>
+              <th>Логин</th><th>ФИО</th><th>Роль</th><th>Активен</th><th>Создан</th><th style="width:110px;">Действия</th>
+            </tr>
+          </thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+      <div id="userStatus"></div>
+
+    </div>
+  </div>
+
+<div class="card" style="margin-top:16px;">
+    <div class="card-header">
+      <span class="card-icon">🕘</span>
+      <h2>Журнал действий</h2>
+      <button class="btn-outline btn-sm" onclick="loadAudit()" style="margin-left:auto;">⟳ Обновить</button>
+    </div>
+    <div class="card-body">
+      <div class="table-wrap" style="max-height:320px;">
+        <table>
+          <thead>
+            <tr><th>Время</th><th>Пользователь</th><th>Действие</th><th>Детали</th></tr>
+          </thead>
+          <tbody id="auditBody"></tbody>
+        </table>
+      </div>
+      <div class="user-form-hint">Последние действия администратора: импорт, очистка, управление пользователями.</div>
+    </div>
+  </div>
+
+</div><!-- /page-admin -->
+
+<script>
+// ══════════════════════════════════════════════
+//  СОСТОЯНИЕ
+// ══════════════════════════════════════════════
+let drivers        = [];   // [{fio, tab_num}, ...]
+let routes         = [];   // [name, ...]
+let allRows        = [];   // [{id,fio,tabNum,date,route,cash,card,cardAv,total}, ...]
+let currentUser    = null; // {id, username, role, full_name, is_active}
+let editingIndex   = -1;
+let domToDataIndex = [];
+
+// Период таблицы «Введённые данные» (по умолчанию — текущий календарный месяц)
+let activePeriod = { year: 0, month: 0 };
+let periodsData  = [];     // [{year, month, count}, ...] из /api/rows/periods
+
+// Кэш строк для сводных таблиц (грузится «за всё время» / по периоду аналитики)
+let analyticsRows = null;  // null = ещё не загружено
+let _analyticsKey = '';    // ключ диапазона период-пикеров
+
+const _MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
+function curYear()  { return new Date().getFullYear(); }
+function curMonth() { return new Date().getMonth() + 1; }
+
+function periodY() { return activePeriod.year  || curYear(); }
+function periodM() { return activePeriod.month || curMonth(); }
+function pad2(n)   { return String(n).padStart(2, '0'); }
+function periodStart() { return periodY() + '-' + pad2(periodM()) + '-01'; }
+function periodEnd()   { return periodY() + '-' + pad2(periodM()) + '-' + pad2(new Date(periodY(), periodM(), 0).getDate()); }
+function periodQuery() { return { start: periodStart(), end: periodEnd() }; }
+
+function monthCount(y, m) {
+  const p = periodsData.find(p => p.year === String(y) && p.month === pad2(m));
+  return p ? p.count : 0;
+}
+
+function monthLabel(y, m, withCounts) {
+  let s = _MONTHS[m - 1];
+  if (withCounts) {
+    const c = monthCount(y, m);
+    if (c > 0) s += ` (${c})`;
+  }
+  return s;
+}
+
+function populatePeriodMenus(withCounts = true) {
+  const ySel = document.getElementById('yearSel');
+  const mSel = document.getElementById('monthSel');
+  if (!ySel || !mSel) return;
+  const years = new Set(periodsData.map(p => +p.year));
+  years.add(curYear());
+  ySel.innerHTML = [...years].sort((a, b) => b - a)
+    .map(y => `<option value="${y}"${y === periodY() ? ' selected' : ''}>${y} г.</option>`).join('');
+  mSel.innerHTML = Array.from({ length: 12 }, (_, i) => {
+    const m = i + 1;
+    return `<option value="${m}"${m === periodM() ? ' selected' : ''}>${monthLabel(periodY(), m, withCounts)}</option>`;
+  }).join('');
+}
+
+function resetEntryFilters() {
+  editingIndex = -1;
+  ['filterFIO', 'filterUser'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const fd = document.getElementById('filterDate');
+  if (fd) fd.value = '';
+}
+
+async function changePeriod() {
+  activePeriod.year  = +document.getElementById('yearSel').value;
+  activePeriod.month = +document.getElementById('monthSel').value;
+  resetEntryFilters();
+  await loadPeriodRows();
+}
+
+async function loadPeriodRows() {
+  allRows = normalizeRows(await api('/rows', periodQuery()));
+  periodsData = (await api('/rows/periods')) || [];
+  populatePeriodMenus(true);
+  renderTable();
+}
+
+// ══════════════════════════════════════════════
+//  УТИЛИТЫ
+// ══════════════════════════════════════════════
+const _fmt = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmt(n) { return _fmt.format(Number(n)); }
+
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+// Timezone-safe: формируем дату из локальных компонентов
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+function clampNum(v) {
+  const n = parseFloat(v);
+  return (isNaN(n) || n < 0) ? 0 : n;
+}
+
+function debounce(fn, delay) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+}
+
+function showStatus(msg) {
+  const el = document.getElementById('saveStatus');
+  el.textContent = msg;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.textContent = ''; }, 2000);
+}
+
+// ══════════════════════════════════════════════
+//  API-ОБЁРТКА
+// ══════════════════════════════════════════════
+async function api(path, options = {}) {
+  const opts = { ...options };
+  if (opts.body && typeof opts.body !== 'string') opts.body = JSON.stringify(opts.body);
+  const qs = [];
+  if (opts.start) qs.push('start=' + encodeURIComponent(opts.start));
+  if (opts.end)   qs.push('end='   + encodeURIComponent(opts.end));
+  delete opts.start; delete opts.end;
+  if (opts.params) {
+    for (const [k, v] of Object.entries(opts.params)) {
+      if (v !== undefined && v !== null && v !== '') qs.push(k + '=' + encodeURIComponent(v));
+    }
+    delete opts.params;
+  }
+  const url = '/api' + path + (qs.length ? '?' + qs.join('&') : '');
+  let res;
+  try {
+    res = await fetch(url, {
+      method: opts.method || (opts.body ? 'POST' : 'GET'),
+      headers: (opts.body ? { 'Content-Type': 'application/json' } : {}) || opts.headers,
+      credentials: 'same-origin',
+      body: opts.body,
+    });
+  } catch (e) {
+    throw new Error('Сервер недоступен');
+  }
+  if (res.status === 401) {
+    if (!path.startsWith('/auth/login')) showLogin('Сессия истекла, войдите заново');
+    throw new Error('Не авторизован');
+  }
+  if (res.status === 403) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.detail || 'Доступ запрещён');
+  }
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.detail ? (typeof d.detail === 'string' ? d.detail : JSON.stringify(d.detail)) : res.statusText);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+// Приведение записей от сервера к внутреннему camelCase-виду
+function normalizeRows(list) {
+  return (list || []).map(r => ({
+    id: r.id,
+    fio: r.fio,
+    tabNum: r.tab_num,
+    date: r.date,
+    route: r.route,
+    cash: r.cash,
+    card: r.card,
+    cardAv: r.card_av,
+    total: r.total,
+    createdBy: r.created_by || '',
+    createdAt: r.created_at || '',
+  }));
+}
+
+async function loadAll() {
+  activePeriod = { year: 0, month: 0 }; // вход — всегда текущий календарный месяц
+  const [rowsList, driversList, routesList, periodsList] = await Promise.all([
+    api('/rows', periodQuery()),
+    api('/drivers'),
+    api('/routes'),
+    api('/rows/periods'),
+  ]);
+  periodsData = periodsList || [];
+  allRows = normalizeRows(rowsList);
+  drivers = (driversList || []).map(d => ({ fio: d.fio, tab_num: d.tab_num }));
+  routes  = (routesList || []).map(r => r.name);
+  populatePeriodMenus(true);
+  renderTable();
+}
+
+async function refreshRows() {
+  const [rowsList, periodsList] = await Promise.all([
+    api('/rows', periodQuery()),
+    api('/rows/periods'),
+  ]);
+  periodsData = periodsList || [];
+  allRows = normalizeRows(rowsList);
+  analyticsRows = null; _analyticsKey = ''; // данные изменились — сводные пересоздадим из свежих
+  populatePeriodMenus(true);
+  renderTable();
+}
+
+// ══════════════════════════════════════════════
+//  АВТОРИЗАЦИЯ
+// ══════════════════════════════════════════════
+function loadLoginUsers() {
+  api('/auth/users').then(list => {
+    const dl = document.getElementById('loginUserList');
+    if (!dl) return;
+    dl.innerHTML = (list || []).map(u =>
+      `<option value="${esc(u.username)}">`).join('');
+  }).catch(() => { /* старый сервер — остаётся ручной ввод */ });
+}
+
+function showLogin(message) {
+  currentUser = null;
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appBar').style.display = 'none';
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('loginError').textContent = message || '';
+  if (message) document.getElementById('loginPassword').value = '';
+  loadLoginUsers();
+}
+
+async function doLogin() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  if (!username || !password) { errEl.textContent = 'Введите логин и пароль'; return; }
+  errEl.textContent = '';
+  try {
+    const me = await api('/auth/login', { method: 'POST', body: { username, password } });
+    await enterApp(me);
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+}
+
+async function doLogout() {
+  try { await api('/auth/logout', { method: 'POST' }); } catch (_) { /* ignore */ }
+  document.getElementById('loginUsername').value = '';
+  document.getElementById('loginPassword').value = '';
+  showLogin('Сессия завершена');
+}
+
+async function enterApp(user) {
+  currentUser = user;
+
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appBar').style.display = 'flex';
+
+  const label = user.full_name || user.username;
+  document.getElementById('userLabel').textContent = label;
+  document.getElementById('userRoleLabel').textContent =
+    user.role === 'admin' ? 'Админ' : (user.role === 'manager' ? 'Руководитель' : 'Пользователь');
+
+  const isAdmin = user.role === 'admin';
+  const isManager = user.role === 'manager';
+  document.getElementById('tab-admin').style.display = isAdmin ? 'inline-flex' : 'none';
+  document.getElementById('tab-entry').style.display = isManager ? 'none' : 'inline-flex';
+  document.getElementById('clearAllButton').style.display = isAdmin ? 'inline-flex' : 'none';
+  document.getElementById('barImportItem').style.display = isAdmin ? 'flex' : 'none';
+
+  document.getElementById('barDriverStatus').textContent = '—';
+  document.getElementById('barRoutesStatus').textContent = '—';
+  document.getElementById('barImportStatus').textContent = '—';
+
+  document.getElementById('dateInput').value = todayStr();
+
+  try {
+    await loadAll();
+  } catch (e) {
+    // 401 уже обработан в api(); при других ошибках показываем предупреждение
+    alert('Ошибка загрузки данных: ' + e.message);
+  }
+  switchTab(isManager ? 'analytics' : 'entry');
+}
+
+// ══════════════════════════════════════════════
+//  НАВИГАЦИЯ ТАБОВ
+// ══════════════════════════════════════════════
+function switchTab(name) {
+  if (currentUser && currentUser.role === 'manager' && (name === 'entry' || name === 'admin')) {
+    return switchTab('analytics');
+  }
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('barUploadPanel').style.display = name === 'entry'     ? 'flex' : 'none';
+  document.getElementById('barStatsPanel').style.display  = name === 'analytics' ? 'flex' : 'none';
+  if (name === 'analytics') updateAnalyticsStats();
+  if (name === 'charts') populateChartsSelects();
+  if (name === 'admin') { loadUsers(); loadAudit(); }
+}
+
+// ══════════════════════════════════════════════
+//  ЗАГРУЗКА СПРАВОЧНИКОВ
+// ══════════════════════════════════════════════
+async function loadDriversFromFile(fromBar) {
+  const inputId = fromBar ? 'driversFile2' : 'driversFile';
+  const input = document.getElementById(inputId);
+  const file = input && input.files[0];
+  if (!file) return alert('Выберите файл со списком водителей!');
+  let text;
+  try { text = await file.text(); } catch (e) { return alert('Не удалось прочитать файл'); }
+  let res;
+  try {
+    res = await api('/drivers/upload', { method: 'POST', body: { content: text } });
+  } catch (e) { return alert('Ошибка загрузки: ' + e.message); }
+  drivers = res.drivers.map(d => ({ fio: d.fio, tab_num: d.tab_num }));
+  if (fromBar) {
+    document.getElementById('barDriverStatus').textContent = `✅ ${res.total} вод. (+${res.added})`;
+  } else {
+    alert(`Загружено водителей: ${res.total} (+новых ${res.added})`);
+  }
+}
+
+async function loadRoutesFromFile(fromBar) {
+  const inputId = fromBar ? 'routesFile2' : 'routesFile';
+  const input = document.getElementById(inputId);
+  const file = input && input.files[0];
+  if (!file) return alert('Выберите файл со списком маршрутов!');
+  let text;
+  try { text = await file.text(); } catch (e) { return alert('Не удалось прочитать файл'); }
+  let res;
+  try {
+    res = await api('/routes/upload', { method: 'POST', body: { content: text } });
+  } catch (e) { return alert('Ошибка загрузки: ' + e.message); }
+  routes = res.routes.map(r => r.name);
+  if (fromBar) {
+    document.getElementById('barRoutesStatus').textContent = `✅ ${res.total} марш. (+${res.added})`;
+  } else {
+    alert(`Загружено маршрутов: ${res.total} (+новых ${res.added})`);
+  }
+}
+
+// ══════════════════════════════════════════════
+//  ИМПОРТ ИЗ EXCEL
+// ══════════════════════════════════════════════
+async function importFromExcel() {
+  const input = document.getElementById('importExcel2');
+  const file = input && input.files[0];
+  if (!file) return alert('Выберите .xlsx файл!');
+  const modeEl = document.querySelector('input[name="importMode"]:checked');
+  const mode = modeEl ? modeEl.value : 'append';
+
+  const totalAll = periodsData.reduce((s, p) => s + p.count, 0);
+  if (mode === 'replace' && totalAll && !confirm(
+    `Сейчас в базе ${totalAll} записей. Импорт ЗАМЕНИТ их полностью. Продолжить?`
+  )) {
+    input.value = '';
+    return;
+  }
+
+  let buf;
+  try { buf = await file.arrayBuffer(); }
+  catch (e) { return alert('Не удалось прочитать файл Excel'); }
+
+  let json;
+  try {
+    const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+    json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+  } catch (e) {
+    return alert('⚠️ Ошибка чтения Excel: ' + e.message);
+  }
+
+  const rows = json.map(row => ({
+    fio:     String(row['ФИО']     ?? row.fio     ?? '').trim(),
+    tab_num: String(row['Таб. №']  ?? row.tabNum  ?? '').trim(),
+    date:    String(row['Дата']    ?? row.date    ?? '').trim(),
+    route:   String(row['Маршрут'] ?? row.route   ?? '').trim(),
+    cash:    clampNum(row['Наличные'] ?? row.cash),
+    card:    clampNum(row['Безнал']   ?? row.card),
+    card_av: clampNum(row['Безнал АВ'] ?? row.cardAv),
+  })).filter(r => r.fio);
+
+  if (!rows.length) return alert('В файле нет корректных строк с колонкой «ФИО».');
+
+  const st = document.getElementById('barImportStatus');
+  st.textContent = '⏳ Импорт…';
+  try {
+    if (mode === 'replace') {
+      await api('/rows/replace', { method: 'POST', body: { rows } });
+    } else {
+      const check = await api('/rows/check', { method: 'POST', body: { rows } });
+      const dupes = (check && check.duplicates) || [];
+      let includeDupes = false;
+      if (dupes.length) {
+        includeDupes = confirm(
+          `Найдены дубликаты (${dupes.length} стр.). Импортировать их вместе с записями?`
+        );
+      }
+      const res = await api('/rows/append', {
+        method: 'POST',
+        params: includeDupes ? { include_duplicates: 'true' } : undefined,
+        body: { rows },
+      });
+      input.value = '';
+      await refreshRows();
+      st.textContent = `✅ Добавлено: +${res.added} (пропущено: ${res.skipped})`;
+      showStatus(`Добавлено ${res.added} записей (пропущено дублей: ${res.skipped})`);
+      if (dupes.length) {
+        if (confirm(`Сохранить дубликаты (${dupes.length} стр.) в файл?`)) {
+          downloadDuplicatesCSV(dupes);
+        }
+      }
+      return;
+    }
+  } catch (e) {
+    input.value = '';
+    st.textContent = '—';
+    return alert('Ошибка импорта: ' + e.message);
+  }
+  input.value = '';
+  await refreshRows();
+  const total = periodsData.reduce((s, p) => s + p.count, 0);
+  st.textContent = `✅ ${total} стр.`;
+  showStatus(`Импортировано ${total} записей`);
+}
+
+// ══════════════════════════════════════════════
+//  АВТОДОПОЛНЕНИЕ
+// ══════════════════════════════════════════════
+let _acScrollHandlers = new Map();
+
+function teardownAutocomplete(inputId) {
+  const prev = _acScrollHandlers.get(inputId);
+  if (prev) {
+    window.removeEventListener('scroll', prev.scroll, true);
+    window.removeEventListener('resize', prev.resize);
+    _acScrollHandlers.delete(inputId);
+  }
+}
+
+function setupAutocomplete(inputId, sugId, getItems, getValue, onSelect, useFixed = false) {
+  const input = document.getElementById(inputId);
+  const sug   = document.getElementById(sugId);
+  if (!input || !sug) return;
+
+  teardownAutocomplete(inputId);
+
+  function positionSug() {
+    if (!useFixed) return;
+    const r = input.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const spaceAbove = r.top;
+    sug.className = 'suggestions-fixed';
+    sug.style.left  = r.left + 'px';
+    sug.style.width = r.width + 'px';
+    if (spaceBelow >= 120 || spaceBelow >= spaceAbove) {
+      sug.style.top    = (r.bottom + 3) + 'px';
+      sug.style.bottom = 'auto';
+      sug.style.maxHeight = Math.min(240, spaceBelow - 8) + 'px';
+    } else {
+      sug.style.bottom = (window.innerHeight - r.top + 3) + 'px';
+      sug.style.top    = 'auto';
+      sug.style.maxHeight = Math.min(240, spaceAbove - 8) + 'px';
+    }
+  }
+
+  input.addEventListener('input', () => {
+    const text = input.value.toLowerCase().trim();
+    if (!text) { sug.style.display = 'none'; sug.innerHTML = ''; return; }
+    const hits = getItems().filter(i => getValue(i).toLowerCase().includes(text)).slice(0, 50);
+    if (!hits.length) { sug.style.display = 'none'; sug.innerHTML = ''; return; }
+
+    const frag = document.createDocumentFragment();
+    hits.forEach(item => {
+      const d = document.createElement('div');
+      d.className = 'suggestion-item';
+      d.textContent = getValue(item);
+      d.addEventListener('mousedown', e => {
+        e.preventDefault();
+        onSelect(item, input);
+        sug.style.display = 'none';
+      });
+      frag.appendChild(d);
+    });
+    sug.innerHTML = '';
+    sug.appendChild(frag);
+    positionSug();
+    sug.style.display = 'block';
+  });
+
+  if (useFixed) {
+    const reposition = () => { if (sug.style.display !== 'none') positionSug(); };
+    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
+    _acScrollHandlers.set(inputId, { scroll: reposition, resize: reposition });
+  }
+
+  input.addEventListener('blur', () => setTimeout(() => { sug.style.display = 'none'; }, 150));
+}
+
+function attachEditRouteAutocomplete(dataIdx) {
+  setupAutocomplete(`e_route_${dataIdx}`, `e_route_sug_${dataIdx}`, () => routes, r => r, (r, inp) => { inp.value = r; }, true);
+}
+
+setupAutocomplete('driverInput', 'driverSuggestions', () => drivers, d => d.fio, (d, inp) => { inp.value = d.fio; });
+setupAutocomplete('routeInput',  'routeSuggestions',  () => routes,  r => r,    (r, inp) => { inp.value = r; });
+
+// ══════════════════════════════════════════════
+//  ДОБАВЛЕНИЕ СТРОКИ
+// ══════════════════════════════════════════════
+async function addRow() {
+  const fio = document.getElementById('driverInput').value.trim();
+  if (!fio) return alert('Выберите или введите ФИО водителя!');
+  const route  = document.getElementById('routeInput').value.trim();
+  const date   = document.getElementById('dateInput').value || todayStr();
+  const cash   = clampNum(document.getElementById('cashInput').value);
+  const card   = clampNum(document.getElementById('cardInput').value);
+  const cardAv = clampNum(document.getElementById('cardAvInput').value);
+  const driver = drivers.find(d => d.fio === fio);
+
+  const payload = {
+    fio,
+    tab_num: driver ? driver.tab_num : '',
+    date,
+    route,
+    cash,
+    card,
+    card_av: cardAv,
+  };
+
+  const dup = allRows.find(r => r.fio === fio && r.date === date && r.route === route);
+  if (dup && !confirm(
+    `Похожая запись уже есть за ${date} (маршрут «${route || '—'}»).\nПродолжить добавление?`
+  )) return;
+
+  try {
+    await api('/rows', { method: 'POST', body: payload });
+  } catch (e) { return alert('Ошибка сохранения: ' + e.message); }
+
+  editingIndex = -1;
+  await refreshRows();
+  ['driverInput','routeInput','cashInput','cardInput','cardAvInput'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('driverInput').focus();
+  if (date < periodStart() || date > periodEnd()) {
+    showStatus('✅ Добавлено и сохранено (дата вне периода — переключите месяц для просмотра)');
+  } else {
+    showStatus('✅ Добавлено и сохранено');
+  }
+}
+
+// ══════════════════════════════════════════════
+//  РЕДАКТИРОВАНИЕ
+// ══════════════════════════════════════════════
+function startEdit(dataIdx) { editingIndex = dataIdx; renderTable(); }
+
+async function saveEdit(dataIdx) {
+  const row = allRows[dataIdx];
+  const payload = {
+    fio:     row.fio,
+    tab_num: document.getElementById(`e_tabNum_${dataIdx}`).value.trim(),
+    date:    document.getElementById(`e_date_${dataIdx}`).value || row.date,
+    route:   document.getElementById(`e_route_${dataIdx}`).value.trim(),
+    cash:    clampNum(document.getElementById(`e_cash_${dataIdx}`).value),
+    card:    clampNum(document.getElementById(`e_card_${dataIdx}`).value),
+    card_av: clampNum(document.getElementById(`e_cardAv_${dataIdx}`).value),
+  };
+  try {
+    await api('/rows/' + row.id, { method: 'PUT', body: payload });
+  } catch (e) { return alert('Ошибка сохранения: ' + e.message); }
+  editingIndex = -1;
+  await refreshRows();
+  showStatus('✅ Изменения сохранены');
+}
+
+function cancelEdit() { editingIndex = -1; renderTable(); }
+
+function recalcEditTotal(dataIdx) {
+  const cash   = clampNum(document.getElementById(`e_cash_${dataIdx}`).value);
+  const card   = clampNum(document.getElementById(`e_card_${dataIdx}`).value);
+  const cardAv = clampNum(document.getElementById(`e_cardAv_${dataIdx}`).value);
+  const el = document.getElementById(`e_total_${dataIdx}`);
+  if (el) el.textContent = fmt(cash + card + cardAv);
+}
+
+// ══════════════════════════════════════════════
+//  УДАЛЕНИЕ
+// ══════════════════════════════════════════════
+async function deleteRow(dataIdx) {
+  const row = allRows[dataIdx];
+  if (!confirm(`Удалить запись для «${row.fio}»?`)) return;
+  try {
+    await api('/rows/' + row.id, { method: 'DELETE' });
+  } catch (e) { return alert('Ошибка удаления: ' + e.message); }
+  if (editingIndex === dataIdx) editingIndex = -1;
+  else if (editingIndex > dataIdx) editingIndex--;
+  await refreshRows();
+  showStatus('✅ Запись удалена');
+}
+
+// ══════════════════════════════════════════════
+//  РЕНДЕР ТАБЛИЦЫ
+// ══════════════════════════════════════════════
+function fmtDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function authorLabel(username) {
+  if (!username) return '';
+  const me = currentUser && username === currentUser.username ? ' <span class="me-tag">(я)</span>' : '';
+  return esc(username) + me;
+}
+
+function renderTable() {
+  const tbody      = document.getElementById('tableBody');
+  const fioFilter  = document.getElementById('filterFIO').value.toLowerCase().trim();
+  const dateFilter = document.getElementById('filterDate').value;
+  const userFilter = document.getElementById('filterUser').value.toLowerCase().trim();
+
+  domToDataIndex = [];
+
+  let html = '';
+  allRows.forEach((r, dataIdx) => {
+    if (fioFilter  && !r.fio.toLowerCase().includes(fioFilter)) return;
+    if (dateFilter && r.date !== dateFilter) return;
+    if (userFilter && !r.createdBy.toLowerCase().includes(userFilter)) return;
+    domToDataIndex.push(dataIdx);
+
+    if (editingIndex === dataIdx) {
+      html += `<tr class="editing">
+        <td>${esc(r.fio)}</td>
+        <td><input type="text" id="e_tabNum_${dataIdx}" value="${esc(r.tabNum)}" style="width:100%"></td>
+        <td><input type="date" id="e_date_${dataIdx}" value="${esc(r.date)}" style="width:100%"></td>
+        <td><div class="autocomplete-wrap" style="position:relative">
+          <input type="text" id="e_route_${dataIdx}" value="${esc(r.route)}" style="width:100%" autocomplete="off">
+          <div id="e_route_sug_${dataIdx}" class="suggestions" style="display:none;"></div>
+        </div></td>
+        <td><input type="number" id="e_cash_${dataIdx}"   value="${r.cash}"   min="0" step="0.01" oninput="recalcEditTotal(${dataIdx})" style="width:100%"></td>
+        <td><input type="number" id="e_card_${dataIdx}"   value="${r.card}"   min="0" step="0.01" oninput="recalcEditTotal(${dataIdx})" style="width:100%"></td>
+        <td><input type="number" id="e_cardAv_${dataIdx}" value="${r.cardAv}" min="0" step="0.01" oninput="recalcEditTotal(${dataIdx})" style="width:100%"></td>
+        <td class="num total-cell" id="e_total_${dataIdx}">${fmt(r.total)}</td>
+        <td class="author-cell" title="${fmtDateTime(r.createdAt)}">${authorLabel(r.createdBy)}</td>
+        <td>
+          <button class="btn-success btn-sm" onclick="saveEdit(${dataIdx});event.stopImmediatePropagation();">💾</button>
+          <button class="btn-slate btn-sm" onclick="cancelEdit();event.stopImmediatePropagation();" style="margin-left:3px;">✕</button>
+        </td></tr>`;
+    } else {
+      html += `<tr>
+        <td>${esc(r.fio)}</td>
+        <td>${esc(r.tabNum)}</td>
+        <td>${esc(r.date)}</td>
+        <td>${esc(r.route)}</td>
+        <td class="num">${fmt(r.cash)}</td>
+        <td class="num">${fmt(r.card)}</td>
+        <td class="num">${fmt(r.cardAv)}</td>
+        <td class="num total-cell">${fmt(r.total)}</td>
+        <td class="author-cell" title="${fmtDateTime(r.createdAt)}">${authorLabel(r.createdBy)}</td>
+        <td>
+          <button class="btn-amber btn-sm" onclick="startEdit(${dataIdx});event.stopImmediatePropagation();" title="Редактировать">✏️</button>
+          <button class="btn-danger btn-sm" onclick="deleteRow(${dataIdx});event.stopImmediatePropagation();" style="margin-left:3px;" title="Удалить">🗑</button>
+        </td></tr>`;
+    }
+  });
+
+  tbody.innerHTML = html;
+
+  if (editingIndex !== -1) attachEditRouteAutocomplete(editingIndex);
+
+  const total = allRows.length;
+  const shown = domToDataIndex.length;
+  const suf   = n => n===1?'ь':n<5?'и':'ей';
+  let txt = `${total} запис${suf(total)}`;
+  if (shown < total) txt += ` · показано: ${shown}`;
+  document.getElementById('rowCount').textContent = txt;
+}
+
+// ══════════════════════════════════════════════
+//  ФИЛЬТР
+// ══════════════════════════════════════════════
+function filterTable() { editingIndex = -1; renderTable(); }
+const debouncedFilter = debounce(filterTable, 150);
+function clearFIOFilter()  { document.getElementById('filterFIO').value  = ''; filterTable(); }
+function clearDateFilter() { document.getElementById('filterDate').value = ''; filterTable(); }
+function clearUserFilter() { document.getElementById('filterUser').value = ''; filterTable(); }
+
+// ══════════════════════════════════════════════
+//  ЭКСПОРТ
+// ══════════════════════════════════════════════
+function exportToExcel() {
+  if (!allRows.length) return alert('Нет данных для экспорта!');
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  const data = allRows.map(r => {
+    const item = {
+      'ФИО': r.fio, 'Таб. №': r.tabNum, 'Дата': r.date, 'Маршрут': r.route || '',
+      'Наличные': r.cash, 'Безнал': r.card, 'Безнал АВ': r.cardAv, 'Всего': r.total
+    };
+    if (isAdmin) {
+      item['Кто добавил'] = r.createdBy || '';
+      item['Когда'] = fmtDateTime(r.createdAt);
+    }
+    return item;
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Выручка');
+  XLSX.writeFile(wb, 'Выручка_водителей.xlsx');
+}
+
+async function exportAllCSV() {
+  if (!currentUser || currentUser.role !== 'admin') return alert('Доступно только администратору');
+  let blob;
+  try {
+    const res = await fetch('/api/rows/export', { credentials: 'same-origin' });
+    if (res.status === 403) return alert('Доступ запрещён');
+    if (!res.ok) return alert('Ошибка экспорта');
+    blob = await res.blob();
+  } catch (e) { return alert('Сервер недоступен'); }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'vyruchka_all.csv';
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(a.href);
+  a.remove();
+}
+
+function downloadDuplicatesCSV(duplicates) {
+  const sep = ';';
+  const header = ['ФИО','Таб. №','Дата','Маршрут','Наличные','Безнал','Безнал АВ','Причина'];
+  const lines = [header.join(sep)];
+  duplicates.forEach(r => {
+    lines.push([
+      r.fio, r.tab_num, r.date, r.route,
+      fmt(r.cash), fmt(r.card), fmt(r.card_av),
+      'Дубль: совпадение ФИО+Таб.№+Дата+Маршрут'
+    ].join(sep));
+  });
+  const bom = '\ufeff';
+  const blob = new Blob([bom + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'duplicates_import.csv';
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(a.href);
+  a.remove();
+  showStatus('📥 Файл дублей скачан');
+}
+
+// ── SVG-диаграммы ──
+const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
+function barChart(chart, data, opts) {
+  chart.innerHTML = '';
+  const sum = data.reduce((s, d) => s + d.value, 0);
+  if (!data.length || sum <= 0) {
+    chart.innerHTML = '<div class="chart-empty">Нет данных за выбранный период</div>';
+    return;
+  }
+  const W = 740, H = 220, PL = 46, PB = 26, PT = 12;
+  const max = Math.max(...data.map(d => d.value)) || 1;
+  const iw = W - PL, ih = H - PB - PT;
+  const n = data.length;
+  const step = iw / n;
+  const bw = Math.min(34, step * 0.62);
+  const x = i => PL + step * i + (step - bw) / 2;
+  const y = v => PT + ih - (v / max) * ih;
+  let bars = '', labels = '';
+  const maxLabel = Math.max(...data.map(d => String(d.label).length));
+  data.forEach((d, i) => {
+    const bh = y(0) - y(d.value);
+    const hx = x(i), hy = y(d.value);
+    bars += `<rect x="${hx.toFixed(1)}" y="${hy.toFixed(1)}" width="${bw.toFixed(1)}" height="${(bh < 1 ? 1 : bh).toFixed(1)}" rx="2" fill="#4f8ef7"/>`;
+    if (maxLabel <= 2 || i % Math.ceil(n / 14) === 0) {
+      labels += `<text x="${(hx + bw / 2).toFixed(1)}" y="${(H - 6).toFixed(1)}" text-anchor="middle" font-size="10" fill="#8a94a6">${esc(d.label)}</text>`;
+    }
+  });
+  const grid = [0, 0.25, 0.5, 0.75, 1].map(f => {
+    const gy = PT + ih * (1 - f);
+    const v = (max * f).toFixed(0);
+    return `<line x1="${PL}" y1="${gy.toFixed(1)}" x2="${W - 8}" y2="${gy.toFixed(1)}" stroke="#edf1f8"/>` +
+           `<text x="${(PL - 6).toFixed(1)}" y="${(gy + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="#8a94a6">${v}</text>`;
+  }).join('');
+  chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%">
+    ${grid}${bars}${labels}
+  </svg>`;
+}
+
+// ══════════════════════════════════════════════
+//  ОЧИСТИТЬ ВСЁ  (только администратор)
+// ══════════════════════════════════════════════
+async function clearAllData() {
+  if (!confirm('Удалить ВСЕ записи? Действие нельзя отменить.')) return;
+  try {
+    await api('/rows/clear', { method: 'POST' });
+  } catch (e) { return alert('Ошибка: ' + e.message); }
+  allRows = [];
+  editingIndex = -1;
+  await refreshRows();
+  document.getElementById('pivotContainer').innerHTML = '<div class="empty-pivot"><div class="ep-icon">📋</div><p>Выберите группировку для построения сводной таблицы</p></div>';
+  document.getElementById('pivotToolbar').style.display = 'none';
+  resetPivotSelection();
+  document.getElementById('detailsContainer').innerHTML = '';
+  document.getElementById('detailsWrapper').style.display = 'none';
+  showStatus('✅ Все записи удалены');
+}
+
+// ══════════════════════════════════════════════
+//  СВОДНЫЕ ТАБЛИЦЫ
+// ══════════════════════════════════════════════
+async function ensureAnalytics() {
+  const s = document.getElementById('filterStartDate').value;
+  const e = document.getElementById('filterEndDate').value;
+  const key = (s || '') + '|' + (e || '');
+  if (analyticsRows !== null && _analyticsKey === key) return;
+  _analyticsKey = key;
+  const params = {};
+  if (s) params.start = s;
+  if (e) params.end = e;
+  const pc = document.getElementById('pivotContainer');
+  pc.innerHTML = '<div class="empty-pivot"><div class="ep-icon">⏳</div><p>Загрузка данных за период…</p></div>';
+  try {
+    analyticsRows = normalizeRows(await api('/rows', params));
+  } catch (err) {
+    analyticsRows = [];
+    pc.innerHTML = '<div class="empty-pivot"><div class="ep-icon">⚠️</div><p>Ошибка загрузки: ' + esc(err.message) + '</p></div>';
+    throw err;
+  }
+  updateAnalyticsStats();
+}
+
+function updateAnalyticsStats() {
+  const els = [
+    'barStatTotal','barStatRevenue','barStatDrivers'
+  ];
+  const rows = analyticsRows || [];
+  document.getElementById('barStatTotal').textContent   = rows.length;
+  document.getElementById('barStatRevenue').textContent = fmt(rows.reduce((s, r) => s + r.total, 0));
+  document.getElementById('barStatDrivers').textContent = new Set(rows.map(r => r.fio)).size;
+}
+
+function getFilteredRows() {
+  return analyticsRows || [];
+}
+
+// ══════════════════════════════════════════════
+//  ГРАФИКИ (вкладка «Графики»)
+// ══════════════════════════════════════════════
+function populateChartsSelects() {
+  const years = new Set((periodsData || []).map(p => +p.year));
+  years.add(curYear());
+  const yearOpts = [...years].sort((a, b) => b - a)
+    .map(y => `<option value="${y}">${y} г.</option>`).join('');
+  const monthOpts = MONTHS_RU.map((m, i) =>
+    `<option value="${i + 1}"${i + 1 === periodM() ? ' selected' : ''}>${m}</option>`
+  ).join('');
+
+  const yy1 = document.getElementById('chartYearYear');
+  const ym  = document.getElementById('chartMonthMonth');
+  const yy2 = document.getElementById('chartMonthYear');
+  if (yy1 && !yy1.dataset.init) { yy1.innerHTML = yearOpts; yy1.dataset.init = '1'; }
+  if (ym  && !ym.dataset.init)  { ym.innerHTML = monthOpts; ym.dataset.init = '1'; }
+  if (yy2 && !yy2.dataset.init) { yy2.innerHTML = yearOpts; yy2.dataset.init = '1'; }
+}
+
+function aggregateByDay(rows, startStr, endStr) {
+  const sd = new Date(startStr), ed = new Date(endStr);
+  const map = {};
+  for (let d = new Date(sd); d <= ed; d.setDate(d.getDate() + 1)) {
+    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    map[key] = 0;
+  }
+  rows.forEach(r => { if (map[r.date] !== undefined) map[r.date] += r.total; });
+  return Object.entries(map).map(([date, value]) => {
+    const p = date.split('-');
+    return { label: p[2] + '.' + p[1], value };
+  });
+}
+
+function monthsInYear(year) {
+  const ms = new Set();
+  (periodsData || []).forEach(p => { if (String(p.year) === String(year)) ms.add(+p.month); });
+  for (let m = 1; m <= 12; m++) ms.add(m);
+  return [...ms].sort((a, b) => a - b);
+}
+
+function daysInMonth(year, month) {
+  return new Date(year, month, 0).getDate();
+}
+
+function chartNoData(el, msg) {
+  el.innerHTML = '<div class="empty-pivot"><div class="ep-icon">📭</div><p>' + esc(msg) + '</p></div>';
+}
+
+async function drawYearlyChart() {
+  const el = document.getElementById('yearlyChart');
+  const ySel = document.getElementById('chartYearYear');
+  if (!ySel || !ySel.value) return;
+  el.innerHTML = '<div class="empty-pivot"><div class="ep-icon">⏳</div><p>Загрузка…</p></div>';
+  let list;
+  try { list = await api('/rows/monthly', { params: { year: ySel.value } }); }
+  catch (e) { chartNoData(el, 'Ошибка: ' + e.message); return; }
+  const byMonth = new Map(list.map(x => [x.month, x.revenue]));
+  const data = MONTHS_RU.map((m, i) => ({ label: m.slice(0, 3), value: byMonth.get(i + 1) || 0 }));
+  const total = data.reduce((s, d) => s + d.value, 0);
+  barChart(el, data, {});
+  el.insertAdjacentHTML('beforeend',
+    '<div style="text-align:right;font-size:13px;color:var(--text-2);margin-top:4px;">Итого: ' + fmt(total) + ' ₽</div>');
+}
+
+async function drawMonthDayChart() {
+  const el = document.getElementById('monthDayChart');
+  const mSel = document.getElementById('chartMonthMonth');
+  const ySel = document.getElementById('chartMonthYear');
+  if (!mSel || !ySel || !mSel.value || !ySel.value) return;
+  const year = +ySel.value, month = +mSel.value;
+  const start = year + '-' + String(month).padStart(2, '0') + '-01';
+  const end   = year + '-' + String(month).padStart(2, '0') + '-' + String(daysInMonth(year, month)).padStart(2, '0');
+  el.innerHTML = '<div class="empty-pivot"><div class="ep-icon">⏳</div><p>Загрузка…</p></div>';
+  let rows;
+  try { rows = await api('/rows', { start, end }); }
+  catch (e) { chartNoData(el, 'Ошибка: ' + e.message); return; }
+  if (!rows.length) { chartNoData(el, 'Нет данных за ' + MONTHS_RU[month - 1] + ' ' + year); return; }
+  const data = aggregateByDay(rows, start, end);
+  const total = data.reduce((s, d) => s + d.value, 0);
+  barChart(el, data, {});
+  el.insertAdjacentHTML('beforeend',
+    '<div style="text-align:right;font-size:13px;color:var(--text-2);margin-top:4px;">Итого: ' + fmt(total) + ' ₽</div>');
+}
+
+async function drawCustomChart() {
+  const el = document.getElementById('customChart');
+  const from = document.getElementById('chartCustomFrom').value;
+  const to   = document.getElementById('chartCustomTo').value;
+  if (!from || !to) return chartNoData(el, 'Укажите дату начала и окончания');
+  el.innerHTML = '<div class="empty-pivot"><div class="ep-icon">⏳</div><p>Загрузка…</p></div>';
+  let rows;
+  try { rows = await api('/rows', { start: from, end: to }); }
+  catch (e) { chartNoData(el, 'Ошибка: ' + e.message); return; }
+  if (!rows.length) { chartNoData(el, 'Нет данных за выбранный период'); return; }
+  const data = aggregateByDay(rows, from, to);
+  const total = data.reduce((s, d) => s + d.value, 0);
+  barChart(el, data, {});
+  el.insertAdjacentHTML('beforeend',
+    '<div style="text-align:right;font-size:13px;color:var(--text-2);margin-top:4px;">Итого: ' + fmt(total) + ' ₽</div>');
+}
+
+let _pivotSelection = new Set();
+let _pivotDetailHandler = null;
+
+function makePivotRowHTML(cells, cb, noCb) {
+  if (noCb) {
+    const tds = cells.map(({ text, cls, bold }) => {
+      const c = cls ? ` class="${cls}"` : '';
+      const content = bold ? `<b>${esc(text)}</b>` : esc(text);
+      return `<td${c}>${content}</td>`;
+    }).join('');
+    return `<tr>${tds}</tr>`;
+  }
+  const attr = cb !== undefined ? ` data-cb="${esc(String(cb))}"` : '';
+  const checked = (cb !== undefined && _pivotSelection.has(String(cb))) ? ' checked' : '';
+  const cbCell = cb !== undefined
+    ? `<td class="pivot-cb-cell"><input type="checkbox" data-key="${esc(String(cb))}"${checked}></td>`
+    : '<td class="pivot-cb-cell"></td>';
+  const tds = cells.map(({ text, cls, bold }) => {
+    const c = cls ? ` class="${cls}"` : '';
+    const content = bold ? `<b>${esc(text)}</b>` : esc(text);
+    return `<td${c}>${content}</td>`;
+  }).join('');
+  const rowCls = (cb !== undefined && _pivotSelection.has(String(cb))) ? ' class="cb-checked"' : '';
+  return `<tr${attr}${rowCls}>${cbCell}${tds}</tr>`;
+}
+
+function attachPivotEvents(container, detailHandler) {
+  _pivotDetailHandler = detailHandler;
+  container.querySelectorAll('tbody tr[data-cb]').forEach(tr => {
+    const cb = tr.querySelector('input[type="checkbox"]');
+    cb.addEventListener('change', e => {
+      e.stopPropagation();
+      const key = cb.dataset.key;
+      if (cb.checked) _pivotSelection.add(key); else _pivotSelection.delete(key);
+      tr.classList.toggle('cb-checked', cb.checked);
+      updateSelBar();
+    });
+    tr.addEventListener('click', e => {
+      if (e.target.type === 'checkbox') return;
+      const key = tr.dataset.cb;
+      const isChecked = !cb.checked;
+      cb.checked = isChecked;
+      if (isChecked) _pivotSelection.add(key); else _pivotSelection.delete(key);
+      tr.classList.toggle('cb-checked', isChecked);
+      updateSelBar();
+      showSelectionDetails();
+    });
+  });
+  const thCb = container.querySelector('thead input[type="checkbox"]');
+  if (thCb) {
+    thCb.addEventListener('change', () => {
+      if (thCb.checked) pivotSelectAll(); else pivotClearSelection();
+    });
+  }
+}
+
+function updateSelBar() {
+  const bar   = document.getElementById('pivotSelBar');
+  const count = document.getElementById('pivotSelCount');
+  const n = _pivotSelection.size;
+  count.textContent = `Выбрано: ${n}`;
+  bar.classList.toggle('visible', n > 0);
+  const thCb = document.querySelector('#pivotContainer thead input[type="checkbox"]');
+  if (thCb) {
+    const total = document.querySelectorAll('#pivotContainer tbody tr[data-cb]').length;
+    thCb.checked = n > 0 && n === total;
+    thCb.indeterminate = n > 0 && n < total;
+  }
+}
+
+function pivotSelectAll() {
+  _pivotSelection.clear();
+  document.querySelectorAll('#pivotContainer tbody tr[data-cb]').forEach(tr => {
+    const key = tr.dataset.cb;
+    _pivotSelection.add(key);
+    tr.classList.add('cb-checked');
+    const cb = tr.querySelector('input[type="checkbox"]');
+    if (cb) cb.checked = true;
+  });
+  updateSelBar();
+  showSelectionDetails();
+}
+
+function pivotClearSelection() {
+  _pivotSelection.clear();
+  document.querySelectorAll('#pivotContainer tbody tr[data-cb]').forEach(tr => {
+    tr.classList.remove('cb-checked');
+    const cb = tr.querySelector('input[type="checkbox"]');
+    if (cb) cb.checked = false;
+  });
+  updateSelBar();
+  document.getElementById('detailsWrapper').style.display = 'none';
+  document.getElementById('detailsContainer').innerHTML = '';
+}
+
+function showSelectionDetails() {
+  if (!_pivotSelection.size || !_pivotDetailHandler) return;
+  _pivotDetailHandler([..._pivotSelection]);
+}
+
+function resetPivotSelection() {
+  _pivotSelection.clear();
+  _pivotDetailHandler = null;
+  document.getElementById('pivotSelBar').classList.remove('visible');
+}
+
+function grandTotalHTML(val) {
+  return `<p class="grand-total">Общий итог: ${fmt(val)} руб.</p>`;
+}
+
+async function buildPivotByDriver() {
+  const pc = document.getElementById('pivotContainer');
+  document.getElementById('detailsContainer').innerHTML = '';
+  try { await ensureAnalytics(); } catch (_) { return; }
+  const rows = getFilteredRows();
+  if (!rows.length) { pc.innerHTML = '<div class="empty-pivot"><div class="ep-icon">🔍</div><p>Нет данных в выбранном периоде.</p></div>'; return; }
+
+  const pivot = {};
+  for (const r of rows) {
+    if (!pivot[r.fio]) pivot[r.fio] = { tabNum: r.tabNum, cash:0, card:0, cardAv:0, total:0 };
+    const p = pivot[r.fio];
+    p.cash += r.cash; p.card += r.card; p.cardAv += r.cardAv; p.total += r.total;
+  }
+
+  let grand = 0;
+  let rowsHTML = '';
+  for (const fio of Object.keys(pivot).sort((a,b) => a.localeCompare(b,'ru'))) {
+    const d = pivot[fio]; grand += d.total;
+    rowsHTML += makePivotRowHTML([
+      {text:fio},{text:d.tabNum},
+      {text:fmt(d.cash),cls:'num'},{text:fmt(d.card),cls:'num'},
+      {text:fmt(d.cardAv),cls:'num'},{text:fmt(d.total),cls:'num total-cell',bold:true}
+    ], fio);
+  }
+
+  showPivotToolbar('driver', 'Сводная по водителям');
+  resetPivotSelection();
+  pc.innerHTML = `<p class="pivot-subtitle">По водителям — отметьте строки для детализации</p>
+    <table><thead><tr>
+      <th class="pivot-cb-cell"><input type="checkbox" title="Выбрать все"></th>
+      <th>ФИО</th><th>Таб. №</th><th class="num">Наличные</th><th class="num">Безнал</th><th class="num">Безнал АВ</th><th class="num">Всего</th>
+    </tr></thead>
+    <tbody>${rowsHTML}</tbody></table>${grandTotalHTML(grand)}`;
+  attachPivotEvents(pc, keys => showDriverDetails(keys));
+}
+
+function showDriverDetails(keys) {
+  const keySet = new Set(Array.isArray(keys) ? keys : [keys]);
+  const rows = getFilteredRows().filter(r => keySet.has(r.fio));
+  if (!rows.length) return;
+  let total = 0;
+  const rowsHTML = rows.map(r => {
+    total += r.total;
+    return makePivotRowHTML([
+      {text:r.date},{text:r.fio},{text:r.route||'—'},
+      {text:fmt(r.cash),cls:'num'},{text:fmt(r.card),cls:'num'},
+      {text:fmt(r.cardAv),cls:'num'},{text:fmt(r.total),cls:'num total-cell',bold:true}
+    ], undefined, true);
+  }).join('');
+  const label = keys.length === 1 ? esc(keys[0]) : `${keys.length} водителей`;
+  showDetailsToolbar(`Детализация: ${keys.length === 1 ? keys[0] : keys.length + ' водителей'}`);
+  document.getElementById('detailsContainer').innerHTML =
+    `<p class="detail-subtitle">Детализация: <span>${label}</span></p>
+    <table><thead><tr><th>Дата</th><th>ФИО</th><th>Маршрут</th><th class="num">Наличные</th><th class="num">Безнал</th><th class="num">Безнал АВ</th><th class="num">Всего</th></tr></thead>
+    <tbody>${rowsHTML}</tbody></table><p class="grand-total">Итого: ${fmt(total)} руб.</p>`;
+}
+
+async function buildPivotByDate() {
+  const pc = document.getElementById('pivotContainer');
+  document.getElementById('detailsContainer').innerHTML = '';
+  try { await ensureAnalytics(); } catch (_) { return; }
+  const rows = getFilteredRows();
+  if (!rows.length) { pc.innerHTML = '<div class="empty-pivot"><div class="ep-icon">🔍</div><p>Нет данных в выбранном периоде.</p></div>'; return; }
+
+  const pivot = {};
+  for (const r of rows) {
+    if (!pivot[r.date]) pivot[r.date] = { cash:0, card:0, cardAv:0, total:0 };
+    const p = pivot[r.date];
+    p.cash += r.cash; p.card += r.card; p.cardAv += r.cardAv; p.total += r.total;
+  }
+
+  let grand = 0;
+  let rowsHTML = '';
+  for (const date of Object.keys(pivot).sort()) {
+    const d = pivot[date]; grand += d.total;
+    rowsHTML += makePivotRowHTML([
+      {text:date},{text:fmt(d.cash),cls:'num'},{text:fmt(d.card),cls:'num'},
+      {text:fmt(d.cardAv),cls:'num'},{text:fmt(d.total),cls:'num total-cell',bold:true}
+    ], date);
+  }
+
+  showPivotToolbar('date', 'Сводная по датам');
+  resetPivotSelection();
+  pc.innerHTML = `<p class="pivot-subtitle">По датам — отметьте строки для детализации</p>
+    <table><thead><tr>
+      <th class="pivot-cb-cell"><input type="checkbox" title="Выбрать все"></th>
+      <th>Дата</th><th class="num">Наличные</th><th class="num">Безнал</th><th class="num">Безнал АВ</th><th class="num">Всего</th>
+    </tr></thead>
+    <tbody>${rowsHTML}</tbody></table>${grandTotalHTML(grand)}`;
+  attachPivotEvents(pc, keys => showDateDetails(keys));
+}
+
+function showDateDetails(keys) {
+  const keySet = new Set(Array.isArray(keys) ? keys : [keys]);
+  const rows = getFilteredRows().filter(r => keySet.has(r.date));
+  if (!rows.length) return;
+  let total = 0;
+  const rowsHTML = rows.map(r => {
+    total += r.total;
+    return makePivotRowHTML([
+      {text:r.date},{text:r.fio},{text:r.route||'—'},
+      {text:fmt(r.cash),cls:'num'},{text:fmt(r.card),cls:'num'},
+      {text:fmt(r.cardAv),cls:'num'},{text:fmt(r.total),cls:'num total-cell',bold:true}
+    ], undefined, true);
+  }).join('');
+  const label = keys.length === 1 ? esc(keys[0]) : `${keys.length} дат`;
+  showDetailsToolbar(`Детализация за: ${keys.length === 1 ? keys[0] : keys.length + ' дат'}`);
+  document.getElementById('detailsContainer').innerHTML =
+    `<p class="detail-subtitle">Детализация за: <span>${label}</span></p>
+    <table><thead><tr><th>Дата</th><th>ФИО</th><th>Маршрут</th><th class="num">Наличные</th><th class="num">Безнал</th><th class="num">Безнал АВ</th><th class="num">Всего</th></tr></thead>
+    <tbody>${rowsHTML}</tbody></table><p class="grand-total">Итого: ${fmt(total)} руб.</p>`;
+}
+
+async function buildPivotByRoute() {
+  const pc = document.getElementById('pivotContainer');
+  document.getElementById('detailsContainer').innerHTML = '';
+  try { await ensureAnalytics(); } catch (_) { return; }
+  const rows = getFilteredRows();
+  if (!rows.length) { pc.innerHTML = '<div class="empty-pivot"><div class="ep-icon">🔍</div><p>Нет данных в выбранном периоде.</p></div>'; return; }
+
+  const pivot = {};
+  for (const r of rows) {
+    const rt = r.route || 'Без маршрута';
+    if (!pivot[rt]) pivot[rt] = { cash:0, card:0, cardAv:0, total:0 };
+    pivot[rt].cash   += r.cash;
+    pivot[rt].card   += r.card;
+    pivot[rt].cardAv += r.cardAv;
+    pivot[rt].total  += r.total;
+  }
+
+  let grand = 0;
+  let rowsHTML = '';
+  for (const rt of Object.keys(pivot).sort((a,b) => a.localeCompare(b,'ru'))) {
+    const d = pivot[rt]; grand += d.total;
+    rowsHTML += makePivotRowHTML([
+      {text:rt},{text:fmt(d.cash),cls:'num'},{text:fmt(d.card),cls:'num'},
+      {text:fmt(d.cardAv),cls:'num'},{text:fmt(d.total),cls:'num total-cell',bold:true}
+    ], rt);
+  }
+
+  showPivotToolbar('route', 'Сводная по маршрутам');
+  resetPivotSelection();
+  pc.innerHTML = `<p class="pivot-subtitle">По маршрутам — отметьте строки для детализации</p>
+    <table><thead><tr>
+      <th class="pivot-cb-cell"><input type="checkbox" title="Выбрать все"></th>
+      <th>Маршрут</th><th class="num">Наличные</th><th class="num">Безнал</th><th class="num">Безнал АВ</th><th class="num">Всего</th>
+    </tr></thead>
+    <tbody>${rowsHTML}</tbody></table>${grandTotalHTML(grand)}`;
+  attachPivotEvents(pc, keys => showRouteDetails(keys));
+}
+
+function showRouteDetails(keys) {
+  const keySet = new Set(Array.isArray(keys) ? keys : [keys]);
+  const rows = getFilteredRows().filter(r => keySet.has(r.route || 'Без маршрута'));
+  if (!rows.length) return;
+  let total = 0;
+  const rowsHTML = rows.map(r => {
+    total += r.total;
+    return makePivotRowHTML([
+      {text:r.date},{text:r.fio},{text:r.route||'—'},
+      {text:fmt(r.cash),cls:'num'},{text:fmt(r.card),cls:'num'},
+      {text:fmt(r.cardAv),cls:'num'},{text:fmt(r.total),cls:'num total-cell',bold:true}
+    ], undefined, true);
+  }).join('');
+  const label = keys.length === 1 ? esc(keys[0]) : `${keys.length} маршрутов`;
+  showDetailsToolbar(`Детализация по маршруту: ${keys.length === 1 ? keys[0] : keys.length + ' маршрутов'}`);
+  document.getElementById('detailsContainer').innerHTML =
+    `<p class="detail-subtitle">Детализация по маршруту: <span>${label}</span></p>
+    <table><thead><tr><th>Дата</th><th>ФИО</th><th>Маршрут</th><th class="num">Наличные</th><th class="num">Безнал</th><th class="num">Безнал АВ</th><th class="num">Всего</th></tr></thead>
+    <tbody>${rowsHTML}</tbody></table><p class="grand-total">Итого: ${fmt(total)} руб.</p>`;
+}
+
+// ══════════════════════════════════════════════
+//  ТУЛБАРЫ СВОДНОЙ И ДЕТАЛИЗАЦИИ
+// ══════════════════════════════════════════════
+let _pivotType  = '';
+let _pivotTitle = '';
+let _detailTitle = '';
+
+function showPivotToolbar(type, title) {
+  _pivotType  = type;
+  _pivotTitle = title;
+  document.getElementById('pivotToolbarTitle').textContent = title;
+  document.getElementById('pivotToolbar').style.display = 'flex';
+  document.getElementById('detailsWrapper').style.display = 'none';
+  document.getElementById('detailsContainer').innerHTML = '';
+}
+
+function showDetailsToolbar(title) {
+  _detailTitle = title;
+  document.getElementById('detailsToolbarTitle').textContent = title;
+  document.getElementById('detailsWrapper').style.display = 'block';
+}
+
+const _reDate = /^\d{4}-\d{2}-\d{2}$/;
+function tableToSheetWithNumbers(tbl) {
+  const ws = {};
+  const range = { s: { r: 0, c: 0 }, e: { r: 0, c: 0 } };
+  const rows = tbl.querySelectorAll('tr');
+  rows.forEach((tr, R) => {
+    const cells = tr.querySelectorAll('th, td');
+    cells.forEach((td, C) => {
+      const addr = XLSX.utils.encode_cell({ r: R, c: C });
+      const raw = td.textContent.trim();
+      if (_reDate.test(raw)) {
+        ws[addr] = { v: raw, t: 's' };
+      } else {
+        const numStr = raw.replace(/\s/g, '').replace(',', '.');
+        const num = parseFloat(numStr);
+        if (!isNaN(num) && numStr !== '' && td.tagName === 'TD') {
+          ws[addr] = { v: num, t: 'n', z: '#,##0.00' };
+        } else {
+          ws[addr] = { v: raw, t: 's' };
+        }
+      }
+      if (R > range.e.r) range.e.r = R;
+      if (C > range.e.c) range.e.c = C;
+    });
+  });
+  ws['!ref'] = XLSX.utils.encode_range(range);
+  return ws;
+}
+
+function exportPivotToExcel() {
+  const tbl = document.querySelector('#pivotContainer table');
+  if (!tbl) return;
+  const wb = XLSX.utils.book_new();
+  const ws = tableToSheetWithNumbers(tbl);
+  XLSX.utils.book_append_sheet(wb, ws, 'Сводная');
+  XLSX.writeFile(wb, `Сводная_${_pivotType}_${todayStr()}.xlsx`);
+}
+
+function exportDetailsToExcel() {
+  const tbl = document.querySelector('#detailsContainer table');
+  if (!tbl) return;
+  const wb = XLSX.utils.book_new();
+  const ws = tableToSheetWithNumbers(tbl);
+  XLSX.utils.book_append_sheet(wb, ws, 'Детализация');
+  XLSX.writeFile(wb, `Детализация_${todayStr()}.xlsx`);
+}
+
+function printSection(section) {
+  const existing = document.getElementById('_printArea');
+  if (existing) existing.remove();
+  const existingStyle = document.getElementById('_printStyle');
+  if (existingStyle) existingStyle.remove();
+
+  const area = document.createElement('div');
+  area.id = '_printArea';
+
+  if (section === 'pivot') {
+    const title = document.createElement('div');
+    title.className = 'print-section-title';
+    title.textContent = _pivotTitle;
+    area.appendChild(title);
+    const clone = document.getElementById('pivotContainer').cloneNode(true);
+    clone.style.maxHeight = 'none';
+    clone.style.overflow  = 'visible';
+    clone.querySelectorAll('.pivot-cb-cell').forEach(el => el.remove());
+    area.appendChild(clone);
+    const gt = document.getElementById('pivotWrapper').querySelector('.grand-total');
+    if (gt) area.appendChild(gt.cloneNode(true));
+  } else {
+    const title = document.createElement('div');
+    title.className = 'print-section-title';
+    title.textContent = _detailTitle;
+    area.appendChild(title);
+    const clone = document.getElementById('detailsContainer').cloneNode(true);
+    clone.style.overflow = 'visible';
+    clone.querySelectorAll('thead').forEach(thead => {
+      const tbody = document.createElement('tbody');
+      tbody.className = 'print-thead';
+      Array.from(thead.rows).forEach(r => tbody.appendChild(r.cloneNode(true)));
+      thead.replaceWith(tbody);
+    });
+    area.appendChild(clone);
+  }
+
+  document.body.appendChild(area);
+
+  const style = document.createElement('style');
+  style.id = '_printStyle';
+  style.textContent = `
+    @media print {
+      body * { display: none !important; }
+      #_printArea, #_printArea * { display: revert !important; }
+      body { margin: 0; padding: 0; background: #fff; }
+      #_printArea {
+        padding: 20px;
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 12px;
+        color: #18212f;
+      }
+      #_printArea table { width:100%; border-collapse:collapse; }
+      #_printArea thead { display: table-header-group !important; }
+      #_printArea tbody tr { page-break-inside: avoid; }
+      #_printArea th, #_printArea td {
+        padding: 7px 10px; border: 1px solid #dde3ee;
+        font-size: 11px; text-align: left;
+      }
+      #_printArea th { background: #f2f6ff !important; font-weight:600; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      #_printArea .num { text-align: right !important; }
+      #_printArea .total-cell { font-weight: 700; color: #3b6ff5 !important; }
+      #_printArea .grand-total { display: block !important; font-weight:700; font-size:13px; padding:8px 0; }
+      #_printArea .pivot-subtitle, #_printArea .detail-subtitle { display:none !important; }
+      #_printArea .print-section-title { display:block !important; font-size:15px; font-weight:700; margin-bottom:12px; }
+      #_printArea .pivot-sel-bar { display: none !important; }
+      #_printArea tbody.print-thead tr th,
+      #_printArea tbody.print-thead tr td {
+        background: #f2f6ff !important; font-weight:600;
+        -webkit-print-color-adjust:exact; print-color-adjust:exact;
+        text-transform: uppercase; font-size: 10px; letter-spacing: .4px;
+      }
+    }`;
+  document.head.appendChild(style);
+
+  function cleanup() {
+    area.remove();
+    style.remove();
+    window.removeEventListener('afterprint', cleanup);
+  }
+  window.addEventListener('afterprint', cleanup);
+
+  window.print();
+}
+
+// ══════════════════════════════════════════════
+//  АДМИНИСТРИРОВАНИЕ — ПОЛЬЗОВАТЕЛИ
+// ══════════════════════════════════════════════
+let editingUserId = null;
+let usersCache = [];
+
+function setUserStatus(msg, isErr) {
+  const el = document.getElementById('userStatus');
+  el.textContent = msg;
+  el.style.color = isErr ? 'var(--red)' : 'var(--green)';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
+async function loadUsers() {
+  try {
+    usersCache = await api('/users');
+  } catch (e) { return alert('Ошибка загрузки пользователей: ' + e.message); }
+  renderUsersTable();
+  resetUserForm();
+}
+
+async function loadAudit() {
+  const tbody = document.getElementById('auditBody');
+  if (!tbody) return;
+  let list;
+  try { list = await api('/audit'); }
+  catch (e) { tbody.innerHTML = '<tr><td colspan="4" style="color:var(--red)">Ошибка: ' + esc(e.message) + '</td></tr>'; return; }
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="4" style="color:var(--text-3)">Журнал действий пуст</td></tr>'; return; }
+  tbody.innerHTML = list.map(x =>
+    `<tr><td>${esc(fmtDateTime(x.created_at))}</td><td>${esc(x.username)}</td><td>${esc(x.action)}</td><td>${esc(x.detail || '')}</td></tr>`
+  ).join('');
+}
+
+function renderUsersTable() {
+  document.getElementById('usersBody').innerHTML = usersCache.map(u => {
+    const self = currentUser && currentUser.id === u.id;
+    return `<tr>
+      <td>${esc(u.username)}${self ? ' <small>(я)</small>' : ''}</td>
+      <td>${esc(u.full_name || '')}</td>
+      <td>${u.role === 'admin'
+        ? '<span class="badge-role admin">Администратор</span>'
+        : (u.role === 'manager'
+            ? '<span class="badge-role manager">Руководитель</span>'
+            : '<span class="badge-role user">Пользователь</span>')}</td>
+      <td>${u.is_active ? '✅' : '⛔'}</td>
+      <td>${u.created_at ? esc(String(u.created_at).slice(0, 10)) : ''}</td>
+      <td class="actions-cell">
+        <button class="btn-amber btn-sm" onclick="editUser(${u.id})" title="Редактировать">✏️</button>
+        <button class="btn-danger btn-sm" onclick="deleteUser(${u.id})" ${self ? 'disabled' : ''} style="margin-left:3px;" title="Удалить">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function editUser(id) {
+  const u = usersCache.find(x => x.id === id);
+  if (!u) return;
+  editingUserId = id;
+  document.getElementById('uUsername').value = u.username;
+  document.getElementById('uUsername').disabled = true;
+  document.getElementById('uFullName').value = u.full_name || '';
+  document.getElementById('uPassword').value = '';
+  document.getElementById('uPassword').placeholder = 'Оставьте пустым — не менять';
+  document.getElementById('uRole').value = u.role;
+  document.getElementById('uActive').checked = !!u.is_active;
+  document.getElementById('uSubmitBtn').textContent = '💾 Сохранить';
+  document.getElementById('uCancelBtn').style.display = 'inline-flex';
+  document.getElementById('userFormTitle').textContent = `Редактирование: ${u.username}`;
+}
+
+function resetUserForm() {
+  editingUserId = null;
+  document.getElementById('uUsername').value = '';
+  document.getElementById('uUsername').disabled = false;
+  document.getElementById('uPassword').value = '';
+  document.getElementById('uPassword').placeholder = '••••••••';
+  document.getElementById('uFullName').value = '';
+  document.getElementById('uRole').value = 'user';
+  document.getElementById('uActive').checked = true;
+  document.getElementById('uSubmitBtn').textContent = '＋ Добавить';
+  document.getElementById('uCancelBtn').style.display = 'none';
+  document.getElementById('userFormTitle').textContent = 'Новый пользователь';
+}
+
+async function saveUser() {
+  const username = document.getElementById('uUsername').value.trim();
+  const password = document.getElementById('uPassword').value;
+  const role = document.getElementById('uRole').value;
+  const full_name = document.getElementById('uFullName').value.trim();
+  const is_active = document.getElementById('uActive').checked;
+
+  if (editingUserId === null) {
+    if (username.length < 3) return setUserStatus('Логин: минимум 3 символа', true);
+    if (password.length < 8) return setUserStatus('Пароль: минимум 8 символов', true);
+    setUserStatus('⏳ Сохраняю…');
+    try {
+      await api('/users', { method: 'POST', body: { username, password, role, full_name, is_active } });
+    } catch (e) { return setUserStatus(e.message, true); }
+    setUserStatus('✅ Пользователь создан');
+  } else {
+    const payload = { role, full_name, is_active };
+    if (password) {
+      if (password.length < 8) return setUserStatus('Пароль: минимум 8 символов', true);
+      payload.password = password;
+    }
+    setUserStatus('⏳ Сохраняю…');
+    try {
+      await api('/users/' + editingUserId, { method: 'PUT', body: payload });
+    } catch (e) { return setUserStatus(e.message, true); }
+    setUserStatus('✅ Изменения сохранены');
+  }
+  await loadUsers();
+}
+
+async function deleteUser(id) {
+  const u = usersCache.find(x => x.id === id);
+  if (!u) return;
+  if (currentUser && currentUser.id === id) return alert('Нельзя удалить свою учётную запись.');
+  if (!confirm(`Удалить пользователя «${u.username}»?`)) return;
+  try {
+    await api('/users/' + id, { method: 'DELETE' });
+  } catch (e) { return alert(e.message); }
+  await loadUsers();
+}
+
+// ══════════════════════════════════════════════
+//  ГОРЯЧИЕ КЛАВИШИ
+// ══════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  const id = e.target.id || '';
+  if (e.key === 'Enter') {
+    if (id === 'loginUsername' || id === 'loginPassword') { e.preventDefault(); doLogin(); return; }
+    if (['uUsername', 'uPassword', 'uFullName', 'uRole'].includes(id)) return;
+    if (id.indexOf('e_') === 0) return;
+    if (id === 'filterFIO' || id === 'filterDate') return;
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'button' || tag === 'textarea') return;
+    if (currentUser && tag === 'input' && editingIndex !== -1 && e.target.type === 'number') return;
+    e.preventDefault();
+    addRow();
+  } else if (e.key === 'Escape') {
+    if (editingIndex !== -1) { e.preventDefault(); cancelEdit(); }
+  }
+});
+
+// ══════════════════════════════════════════════
+//  СТАРТ
+// ══════════════════════════════════════════════
+document.getElementById('loginPassword').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+});
+
+document.getElementById('driversFile2').addEventListener('change', function() {
+  if (!this.files[0]) return;
+  document.getElementById('barDriverStatus').textContent = `📄 ${this.files[0].name}`;
+  loadDriversFromFile(true);
+});
+document.getElementById('routesFile2').addEventListener('change', function() {
+  if (!this.files[0]) return;
+  document.getElementById('barRoutesStatus').textContent = `📄 ${this.files[0].name}`;
+  loadRoutesFromFile(true);
+});
+document.getElementById('importExcel2').addEventListener('change', function() {
+  if (!this.files[0]) return;
+  document.getElementById('barImportStatus').textContent = `📄 ${this.files[0].name}`;
+  importFromExcel();
+});
+
+// Проверяем сессию при загрузке
+(async function initApp() {
+  renderTable();
+  loadLoginUsers();
+  try {
+    const me = await api('/auth/me');
+    await enterApp(me);
+  } catch (_) {
+    showLogin();
+  }
+})();
+</script>
+</body>
+</html>
